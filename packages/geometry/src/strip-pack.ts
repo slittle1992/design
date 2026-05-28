@@ -1,6 +1,6 @@
-import type { Polygon, Strip, StripLayout } from './types.js';
-import { polygonArea, polygonBounds, polygonCentroid, rotatePolygon } from './polygon.js';
-import { slabMetrics } from './clip.js';
+import type { Polygon, Strip, StripLayout } from './types';
+import { polygonArea, polygonBounds, polygonCentroid, rotatePolygon } from './polygon';
+import { slabMetrics } from './clip';
 
 export const DEFAULT_STRIP_WIDTH_FT = 14;
 

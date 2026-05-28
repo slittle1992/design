@@ -3,7 +3,7 @@ import {
   computeStripLayout,
   findMinWasteLayout,
   compareCardinalLayouts,
-} from '../src/strip-pack.js';
+} from '../src/strip-pack';
 
 const rectangle = (w: number, h: number) => [
   { x: 0, y: 0 },

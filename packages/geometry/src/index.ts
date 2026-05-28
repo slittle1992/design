@@ -5,7 +5,7 @@ export type {
   StripLayout,
   DesignIntent,
   DesignIntentResult,
-} from './types.js';
+} from './types';
 
 export {
   polygonArea,
@@ -13,9 +13,9 @@ export {
   polygonCentroid,
   rotatePoint,
   rotatePolygon,
-} from './polygon.js';
+} from './polygon';
 
-export { clipToSlab, slabMetrics } from './clip.js';
+export { clipToSlab, slabMetrics } from './clip';
 
 export {
   DEFAULT_STRIP_WIDTH_FT,
@@ -23,4 +23,4 @@ export {
   findMinWasteLayout,
   compareCardinalLayouts,
   totalLawnSqFt,
-} from './strip-pack.js';
+} from './strip-pack';

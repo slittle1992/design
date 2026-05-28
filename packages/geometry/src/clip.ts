@@ -1,5 +1,5 @@
-import type { Point, Polygon } from './types.js';
-import { polygonArea } from './polygon.js';
+import type { Point, Polygon } from './types';
+import { polygonArea } from './polygon';
 
 /**
  * Clip a polygon to the half-plane y >= yMin using Sutherland-Hodgman.

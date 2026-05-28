@@ -1,4 +1,4 @@
-import type { Point, Polygon } from './types.js';
+import type { Point, Polygon } from './types';
 
 export function polygonArea(poly: Polygon): number {
   if (poly.length < 3) return 0;

@@ -25,6 +25,7 @@ export type Design = {
   address: string;
   profile: Profile;
   lawnPolygon: Polygon | null;
+  lawnVertices: Polygon | null; // the tap-anchors before smoothing — for re-editing
   lawnSqFt: number;
   heroPhotoIds: string[];
   intent: DesignIntent;
@@ -36,6 +37,8 @@ type Store = {
   startNew: () => void;
   setProfile: (patch: Partial<Profile>) => void;
   setHomeowner: (name: string, address: string) => void;
+  setLawn: (polygon: Polygon, sqft: number, vertices: Polygon) => void;
+  addHeroPhoto: (id: string) => void;
   reset: () => void;
 };
 
@@ -54,6 +57,7 @@ const blankDesign = (): Design => ({
   address: '',
   profile: { ...emptyProfile },
   lawnPolygon: null,
+  lawnVertices: null,
   lawnSqFt: 0,
   heroPhotoIds: [],
   intent: 'minimize-waste',
@@ -73,6 +77,18 @@ export const useDesign = create<Store>()(
         ),
       setHomeowner: (homeownerName, address) =>
         set((s) => (s.current ? { current: { ...s.current, homeownerName, address } } : s)),
+      setLawn: (lawnPolygon, lawnSqFt, lawnVertices) =>
+        set((s) =>
+          s.current
+            ? { current: { ...s.current, lawnPolygon, lawnVertices, lawnSqFt } }
+            : s,
+        ),
+      addHeroPhoto: (id) =>
+        set((s) =>
+          s.current
+            ? { current: { ...s.current, heroPhotoIds: [...s.current.heroPhotoIds, id] } }
+            : s,
+        ),
       reset: () => set({ current: null }),
     }),
     { name: 'homefield-design' },

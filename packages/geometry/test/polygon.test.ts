@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { polygonArea, polygonBounds, rotatePolygon } from '../src/polygon.js';
+import { polygonArea, polygonBounds, rotatePolygon } from '../src/polygon';
 
 describe('polygonArea', () => {
   it('computes the area of a unit square', () => {
