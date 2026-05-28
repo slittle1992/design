@@ -1,0 +1,141 @@
+{
+  "_note": "Extracted from spec sheets in assets/specs/. Pricing fields are placeholders pending input from Homefield. SKU naming reflects internal/customer-facing mapping confirmed by Spencer.",
+  "turf": [
+    {
+      "id": "classic",
+      "customerName": "Classic",
+      "manufacturerSku": "TH-SELECT",
+      "specSheet": "assets/specs/classic-th-select.pdf",
+      "tagline": "Builder-favorite value with the features you love.",
+      "bestFor": ["budget-conscious", "general residential", "low pet traffic"],
+      "specs": {
+        "pileHeightIn": 1.75,
+        "faceWeightOz": 65,
+        "totalWeightOz": 92,
+        "stitchGaugeIn": 0.375,
+        "yarnColor": "Field / Dark Olive",
+        "thatchColor": "Brown / Green",
+        "faceComposition": "PE Monofilament",
+        "thatchMaterial": "Texturized PP",
+        "primaryBacking": "27 oz, 2-layer PU",
+        "drainRateInPerHr": 30,
+        "bladeShape": "M Shape",
+        "warrantyYears": 15,
+        "features": [
+          "CoolFlo Technology — yarn shape increases airflow and lowers surface temperature",
+          "UV stabilized to resist sun fading",
+          "Non-flammable, anti-acid yarn"
+        ]
+      },
+      "pricePerSqFt": null
+    },
+    {
+      "id": "pro",
+      "customerName": "Pro",
+      "manufacturerSku": "HOMEFIELD-PRO",
+      "specSheet": "assets/specs/homefield-pro.pdf",
+      "tagline": "Dense, durable, Pacific-coastline look — built for pets, kids, and high-traffic yards.",
+      "bestFor": ["pets", "kids/play", "high-traffic residential", "premium aesthetic"],
+      "specs": {
+        "pileHeightIn": 1.375,
+        "faceWeightOz": 90,
+        "totalWeightOz": 117,
+        "stitchGaugeIn": 0.375,
+        "yarnColor": "Field / Olive",
+        "thatchColor": "Brown / Green",
+        "faceComposition": "PE Monofilament",
+        "thatchMaterial": "Texturized PP",
+        "primaryBacking": "27 oz, 2-layer PU",
+        "drainRateInPerHr": 30,
+        "bladeShape": "C Shape",
+        "warrantyYears": 15,
+        "features": [
+          "C-shaped yarn — increased airflow, lower surface temp (TX heat angle)",
+          "Stronger fiber recovery for high-traffic and pets",
+          "UV-stabilized, non-flammable, anti-acid"
+        ]
+      },
+      "pricePerSqFt": null
+    },
+    {
+      "id": "golf",
+      "customerName": "Golf",
+      "manufacturerSku": "TOUR-PLATINUM",
+      "specSheet": "assets/specs/golf-tour-platinum.pdf",
+      "tagline": "True country-club roll — putting green grade with natural rubber backing.",
+      "bestFor": ["putting greens", "chipping areas"],
+      "openQuestion": "Original brief mentioned 'Sports (putting greens AND batting cages)'. Tour Platinum is putting-green specific. Confirm if a separate sport/turf SKU exists for batting cages or if Pro is used in that application.",
+      "specs": {
+        "pileHeightIn": 0.375,
+        "faceWeightOz": 40,
+        "totalWeightOz": 82,
+        "stitchGaugeIn": 0.1875,
+        "yarnColor": "Emerald / FG",
+        "thatchColor": "N/A",
+        "faceComposition": "Texturized Nylon",
+        "thatchMaterial": "N/A",
+        "primaryBacking": "White Natural Rubber Action Back",
+        "drainRateInPerHr": null,
+        "bladeShape": "Lux Lawn TXT Nylon",
+        "warrantyYears": 15,
+        "features": [
+          "Texturized nylon yarn for true ball roll",
+          "Natural rubber backing for smoother install",
+          "UV stabilized, non-flammable, anti-acid"
+        ]
+      },
+      "pricePerSqFt": null
+    }
+  ],
+  "warranty": {
+    "manufacturer": {
+      "termYears": 15,
+      "provider": "TurfHub",
+      "coverage": "Substantial color change (vs. normal texture variation) and pile height reduction of 50%+ from original spec.",
+      "proration": {
+        "years1to8": "100% material coverage",
+        "years9to12": "50% material coverage",
+        "years13to15": "25% material coverage"
+      }
+    },
+    "craftsmanship": {
+      "termMonths": 12,
+      "covers": [
+        "Seam separation or failure under normal use",
+        "Edge lifting, buckling, or wrinkling",
+        "Improper drainage from installation",
+        "Infill settlement / displacement",
+        "Base preparation defects"
+      ],
+      "remedy": "Repair or re-install at no cost during the period."
+    },
+    "extendedLabor": "Active bi-annual+ maintenance plan extends labor warranty to the full 15-year manufacturer term."
+  },
+  "maintenance": {
+    "complimentary": {
+      "termYears": 2,
+      "frequency": "bi-annual",
+      "totalVisits": 4,
+      "included": [
+        "Leaf and seasonal debris removal",
+        "Surface cleaning (dirt, dust, organics)",
+        "Pet waste removal",
+        "Seam repairs, tear patches, edge restoration",
+        "Power brooming to lift flattened fibers",
+        "Infill redistribution and refresh",
+        "Weeding between fibers and at edges",
+        "Antimicrobial treatments",
+        "Enzymatic pet-odor deodorizers",
+        "Deep cleaning for high-use areas",
+        "Spring awakening / fall prep",
+        "Storm damage assessment",
+        "Drainage and seam/edge inspection"
+      ]
+    },
+    "plans": [
+      { "id": "monthly", "label": "Monthly", "perPeriod": 108, "annualIfPrepaid": 975, "popular": true },
+      { "id": "quarterly", "label": "Quarterly", "perPeriod": 225, "annualIfPrepaid": 900 },
+      { "id": "biannual", "label": "Bi-Annual", "perPeriod": 375, "annualIfPrepaid": 750, "note": "Minimum to keep extended labor warranty active." }
+    ]
+  }
+}
