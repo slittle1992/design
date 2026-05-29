@@ -1,9 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { useDesign } from '@/lib/store';
-import { LawnTrace } from '@/components/LawnTrace';
+import { useEffect, useMemo, useState } from 'react';
+import { useDesign, CUTOUT_LABELS, type CutoutKind } from '@/lib/store';
+import { LawnTrace, type EditableShape } from '@/components/LawnTrace';
 import { StepHeader } from '@/components/StepHeader';
 import { StepFooter } from '@/components/StepFooter';
 import { HeroPhotos } from '@/components/HeroPhotos';
@@ -14,12 +14,19 @@ const TILE_WIDTH = 640;
 const TILE_HEIGHT = 640;
 const TILE_SCALE: 1 | 2 = 2;
 const DEFAULT_ZOOM = 20;
+const LAWN_ID = 'lawn';
+
+const CUTOUT_OPTIONS: CutoutKind[] = ['pool', 'flower-bed', 'tree', 'patio', 'equipment', 'other'];
 
 export default function CapturePage() {
   const router = useRouter();
   const current = useDesign((s) => s.current);
   const setLawn = useDesign((s) => s.setLawn);
   const setHomeowner = useDesign((s) => s.setHomeowner);
+  const addCutout = useDesign((s) => s.addCutout);
+  const updateCutout = useDesign((s) => s.updateCutout);
+  const setCutoutKind = useDesign((s) => s.setCutoutKind);
+  const removeCutout = useDesign((s) => s.removeCutout);
   const addHeroPhoto = useDesign((s) => s.addHeroPhoto);
   const removeHeroPhoto = useDesign((s) => s.removeHeroPhoto);
 
@@ -28,8 +35,9 @@ export default function CapturePage() {
   const [error, setError] = useState<string | null>(null);
   const [location, setLocation] = useState<LatLng | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [tracedSqft, setTracedSqft] = useState(0);
   const [photoSaving, setPhotoSaving] = useState(false);
+  const [activeId, setActiveId] = useState<string>(LAWN_ID);
+  const [smooth, setSmooth] = useState(true);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
@@ -66,9 +74,7 @@ export default function CapturePage() {
       try {
         localStorage.setItem(`heroPhoto:${id}`, dataUrl);
       } catch {
-        throw new Error(
-          'Out of local storage space. Remove an existing photo and try again.',
-        );
+        throw new Error('Out of local storage space. Remove a photo and try again.');
       }
       addHeroPhoto(id);
     } catch (err) {
@@ -77,6 +83,34 @@ export default function CapturePage() {
       setPhotoSaving(false);
     }
   };
+
+  const handleAddCutout = (kind: CutoutKind) => {
+    const id = addCutout(kind);
+    setActiveId(id);
+  };
+
+  const handleRemoveCutout = (id: string) => {
+    removeCutout(id);
+    if (activeId === id) setActiveId(LAWN_ID);
+  };
+
+  const lawnVertices = current?.lawnVertices ?? [];
+  const cutouts = current?.cutouts ?? [];
+
+  const lawnShape: EditableShape = useMemo(
+    () => ({ id: LAWN_ID, kind: 'lawn', vertices: lawnVertices }),
+    [lawnVertices],
+  );
+  const cutoutShapes: EditableShape[] = useMemo(
+    () =>
+      cutouts.map((c) => ({
+        id: c.id,
+        kind: 'cutout',
+        label: CUTOUT_LABELS[c.kind],
+        vertices: c.vertices,
+      })),
+    [cutouts],
+  );
 
   if (!current) return null;
 
@@ -94,7 +128,22 @@ export default function CapturePage() {
         )
       : null;
 
-  const hasLawn = !!current.lawnPolygon && current.lawnSqFt >= 50;
+  const netSqft = Math.max(
+    0,
+    current.lawnSqFt -
+      current.cutouts.reduce((sum, c) => {
+        // Polygons in feet — shoelace via the same formula.
+        let s = 0;
+        for (let i = 0; i < c.polygonFt.length; i++) {
+          const a = c.polygonFt[i]!;
+          const b = c.polygonFt[(i + 1) % c.polygonFt.length]!;
+          s += a.x * b.y - b.x * a.y;
+        }
+        return sum + Math.abs(s) / 2;
+      }, 0),
+  );
+
+  const hasLawn = !!current.lawnPolygon && netSqft >= 50;
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -115,9 +164,7 @@ export default function CapturePage() {
               {loading ? 'Loading…' : 'Load satellite'}
             </button>
           </div>
-          {error && (
-            <p className="mt-2 text-[13px] text-danger">{error}</p>
-          )}
+          {error && <p className="mt-2 text-[13px] text-danger">{error}</p>}
           {!apiKey && (
             <p className="mt-2 text-[13px] text-ink-muted">
               Google Maps key not available in this environment. Set
@@ -130,12 +177,25 @@ export default function CapturePage() {
         {tileUrl && location && (
           <div>
             <div className="flex items-baseline justify-between mb-3">
-              <p className="label">Trace the lawn</p>
+              <div>
+                <p className="label">Trace the lawn</p>
+                <p className="text-[13px] text-ink-muted mt-1">
+                  {activeId === LAWN_ID
+                    ? 'Editing lawn outline'
+                    : `Editing ${cutoutShapes.find((s) => s.id === activeId)?.label ?? 'cutout'}`}
+                </p>
+              </div>
               <div className="text-right">
                 <span className="display text-2xl tabular-nums">
-                  {Math.round(tracedSqft).toLocaleString()}
+                  {Math.round(netSqft).toLocaleString()}
                 </span>
                 <span className="ml-1 text-[13px] text-ink-muted">sq ft</span>
+                {current.cutouts.length > 0 && (
+                  <p className="text-[11px] text-ink-muted">
+                    net of {current.cutouts.length} cutout
+                    {current.cutouts.length === 1 ? '' : 's'}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -146,10 +206,18 @@ export default function CapturePage() {
               centerLat={location.lat}
               zoom={zoom}
               scale={TILE_SCALE}
-              initialVertices={[]}
-              onChange={({ vertices, polygon, sqft }) => {
-                setTracedSqft(sqft);
-                setLawn(polygon, sqft, vertices);
+              lawn={lawnShape}
+              cutouts={cutoutShapes}
+              activeId={activeId}
+              onActiveChange={setActiveId}
+              smooth={smooth}
+              onSmoothChange={setSmooth}
+              onShapeChange={({ id, vertices, polygonFt, sqft }) => {
+                if (id === LAWN_ID) {
+                  setLawn(polygonFt, sqft, vertices);
+                } else {
+                  updateCutout(id, vertices, polygonFt);
+                }
               }}
             />
 
@@ -171,6 +239,76 @@ export default function CapturePage() {
                 +
               </button>
             </div>
+
+            <div className="mt-8">
+              <div className="flex items-center justify-between">
+                <p className="label">Cutouts</p>
+                <button
+                  onClick={() => setActiveId(LAWN_ID)}
+                  className={`chip ${activeId === LAWN_ID ? 'chip-selected' : ''}`}
+                >
+                  Edit lawn
+                </button>
+              </div>
+              <p className="text-[13px] text-ink-muted mt-1">
+                Mark anything we don&apos;t turf over — pools, beds, trees, patios, AC pads.
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {current.cutouts.map((c) => {
+                  const isActive = activeId === c.id;
+                  const sqft = polyAreaFt(c.polygonFt);
+                  return (
+                    <div
+                      key={c.id}
+                      className={`flex items-center gap-3 rounded-lg border p-3 ${
+                        isActive ? 'border-ink bg-surface-soft' : 'border-line'
+                      }`}
+                    >
+                      <select
+                        value={c.kind}
+                        onChange={(e) => setCutoutKind(c.id, e.target.value as CutoutKind)}
+                        className="rounded-md border border-line bg-surface px-2 py-1 text-[14px] font-medium"
+                      >
+                        {CUTOUT_OPTIONS.map((k) => (
+                          <option key={k} value={k}>
+                            {CUTOUT_LABELS[k]}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-[13px] text-ink-muted tabular-nums flex-1">
+                        {sqft > 0 ? `${Math.round(sqft)} sq ft` : 'not drawn'}
+                      </span>
+                      <button
+                        onClick={() => setActiveId(c.id)}
+                        disabled={isActive}
+                        className="chip text-[12px] disabled:opacity-40"
+                      >
+                        {isActive ? 'Editing' : 'Edit'}
+                      </button>
+                      <button
+                        onClick={() => handleRemoveCutout(c.id)}
+                        className="chip text-[12px]"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {CUTOUT_OPTIONS.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => handleAddCutout(k)}
+                    className="chip text-[12px]"
+                  >
+                    + {CUTOUT_LABELS[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -183,7 +321,11 @@ export default function CapturePage() {
           <HeroPhotos ids={current.heroPhotoIds} onRemove={removeHeroPhoto} />
 
           <div className="mt-4 flex items-center gap-3">
-            <label className={`btn-secondary inline-flex cursor-pointer ${photoSaving ? 'opacity-60 pointer-events-none' : ''}`}>
+            <label
+              className={`btn-secondary inline-flex cursor-pointer ${
+                photoSaving ? 'opacity-60 pointer-events-none' : ''
+              }`}
+            >
               {photoSaving
                 ? 'Saving…'
                 : current.heroPhotoIds.length > 0
@@ -215,4 +357,15 @@ export default function CapturePage() {
       />
     </main>
   );
+}
+
+function polyAreaFt(poly: { x: number; y: number }[]): number {
+  if (poly.length < 3) return 0;
+  let sum = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]!;
+    const b = poly[(i + 1) % poly.length]!;
+    sum += a.x * b.y - b.x * a.y;
+  }
+  return Math.abs(sum) / 2;
 }

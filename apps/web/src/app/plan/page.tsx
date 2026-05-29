@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { useDesign } from '@/lib/store';
+import { CUTOUT_LABELS, netLawnSqFt, useDesign } from '@/lib/store';
 import { StepHeader } from '@/components/StepHeader';
 import { StepFooter } from '@/components/StepFooter';
 import { ArchPlan } from '@/components/ArchPlan';
@@ -26,12 +26,24 @@ export default function PlanPage() {
 
   const layout: StripLayout | null = useMemo(() => {
     if (!current?.lawnPolygon) return null;
+    // NOTE: V1 strip-packer runs on the lawn outline only. Net sqft accounts
+    // for cutouts honestly, but strip count / waste assumes the rolls flow
+    // over cutout areas (extra seams from a pool splitting a strip are TODO).
     if (orientation === 'auto') return findMinWasteLayout(current.lawnPolygon, 14, 5);
     if (orientation === 'ew') return computeStripLayout(current.lawnPolygon, 0, 14);
     return computeStripLayout(current.lawnPolygon, 90, 14);
   }, [current?.lawnPolygon, orientation]);
 
   if (!current?.lawnPolygon) return null;
+
+  const net = netLawnSqFt(current);
+  const cutoutsForRender = current.cutouts
+    .filter((c) => c.polygonFt.length >= 3)
+    .map((c) => ({
+      id: c.id,
+      polygonFt: c.polygonFt,
+      label: CUTOUT_LABELS[c.kind],
+    }));
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -40,15 +52,20 @@ export default function PlanPage() {
       <section className="flex-1 px-6 sm:px-8 py-10 max-w-3xl mx-auto w-full space-y-10">
         <div>
           <p className="label">Their yard</p>
-          <h1 className="display text-4xl sm:text-5xl mt-2">
-            {Math.round(current.lawnSqFt).toLocaleString()} sq ft
+          <h1 className="display text-4xl sm:text-5xl mt-2 tabular-nums">
+            {Math.round(net).toLocaleString()} sq ft
           </h1>
-          <p className="mt-2 text-[15px] text-ink-muted">
-            {current.address || 'Address not set'}
-          </p>
+          <p className="mt-2 text-[15px] text-ink-muted">{current.address || 'Address not set'}</p>
+          {current.cutouts.length > 0 && (
+            <p className="mt-1 text-[13px] text-ink-muted">
+              Gross {Math.round(current.lawnSqFt).toLocaleString()} sq ft,
+              minus {current.cutouts.length} cutout
+              {current.cutouts.length === 1 ? '' : 's'}.
+            </p>
+          )}
         </div>
 
-        <ArchPlan polygon={current.lawnPolygon} layout={layout} />
+        <ArchPlan polygon={current.lawnPolygon} cutouts={cutoutsForRender} layout={layout} />
 
         {layout && (
           <div className="grid grid-cols-3 gap-3">
@@ -78,17 +95,27 @@ export default function PlanPage() {
             />
           </div>
           <p className="mt-3 text-[13px] text-ink-muted">
-            Turf rolls are 14 ft wide. We choose the direction that hides seams from the
-            patio view and minimizes cut waste.
+            Turf rolls are 14 ft wide. We pick the direction that hides seams from the patio view
+            and minimizes cut waste.
           </p>
+        </div>
+
+        <div className="rounded-xl border border-line p-4">
+          <p className="label">Need to fix the measurement?</p>
+          <p className="mt-1 text-[13px] text-ink-muted">
+            Go back to the trace to drag corners, add a corner, or mark a pool, flower bed, or
+            patio that shouldn&apos;t be turfed.
+          </p>
+          <button onClick={() => router.push('/capture')} className="btn-secondary mt-3">
+            ← Edit measurements
+          </button>
         </div>
       </section>
 
       <StepFooter
         primaryLabel="Continue"
         onPrimary={() => {
-          // TODO(act-4): build the education / seam-direction walkthrough.
-          alert('Next acts (turf selection, design intent, render) are coming up next.');
+          alert('Turf selection, design intent, and render are coming up next.');
         }}
       />
     </main>
