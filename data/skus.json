@@ -27,7 +27,7 @@
           "Non-flammable, anti-acid yarn"
         ]
       },
-      "pricePerSqFt": null
+      "pricePerSqFt": 14
     },
     {
       "id": "pro",
@@ -55,7 +55,7 @@
           "UV-stabilized, non-flammable, anti-acid"
         ]
       },
-      "pricePerSqFt": null
+      "pricePerSqFt": 18
     },
     {
       "id": "golf",
@@ -84,9 +84,23 @@
           "UV stabilized, non-flammable, anti-acid"
         ]
       },
-      "pricePerSqFt": null
+      "pricePerSqFt": 30
     }
   ],
+  "_pricingNote": "Per-sqft prices are PLACEHOLDER estimates — replace with Homefield's real installed rates before going live.",
+  "addOns": {
+    "rockPerSqFt": 4,
+    "edging": {
+      "bender-board": { "label": "Bender board", "pricePerLinearFt": 5 },
+      "steel": { "label": "Steel edging", "pricePerLinearFt": 12 },
+      "paver": { "label": "Paver border", "pricePerLinearFt": 20 }
+    },
+    "featurePremiums": {
+      "putting-green": { "label": "Putting green", "sku": "golf", "pricePerSqFt": 30 },
+      "pet-area": { "label": "Pet relief area", "sku": "pro", "extraPerSqFt": 3 },
+      "play-pad": { "label": "Kids play pad", "sku": "pro", "extraPerSqFt": 2 }
+    }
+  },
   "warranty": {
     "manufacturer": {
       "termYears": 15,

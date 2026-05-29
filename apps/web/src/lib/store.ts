@@ -11,6 +11,14 @@ export type TurfId = 'classic' | 'pro' | 'golf';
 export type DesignIntent = 'minimize-waste' | 'maximize-turf' | 'budget-friendly';
 
 export type CutoutKind = 'pool' | 'flower-bed' | 'tree' | 'patio' | 'equipment' | 'other';
+export type FeatureKind = 'putting-green' | 'pet-area' | 'play-pad';
+export type EdgingKind = 'bender-board' | 'steel' | 'paver';
+
+export type FeatureZone = {
+  id: string;
+  kind: FeatureKind;
+  sqft: number;
+};
 
 export type Cutout = {
   id: string;
@@ -51,6 +59,10 @@ export type Design = {
   heroPhotoIds: string[];
   intent: DesignIntent;
   turfId: TurfId | null;
+  rockSqFt: number;
+  featureZones: FeatureZone[];
+  edgingKind: EdgingKind | null;
+  edgingLinearFt: number;
 };
 
 type Store = {
@@ -67,6 +79,13 @@ type Store = {
   removeCutout: (id: string) => void;
   addHeroPhoto: (id: string) => void;
   removeHeroPhoto: (id: string) => void;
+  setTurf: (id: TurfId | null) => void;
+  setIntent: (intent: DesignIntent) => void;
+  setRockSqFt: (sqft: number) => void;
+  addFeatureZone: (kind: FeatureKind, sqft: number) => void;
+  updateFeatureZone: (id: string, patch: Partial<Omit<FeatureZone, 'id'>>) => void;
+  removeFeatureZone: (id: string) => void;
+  setEdging: (kind: EdgingKind | null, linearFt: number) => void;
   reset: () => void;
 };
 
@@ -115,6 +134,10 @@ const blankDesign = (): Design => ({
   heroPhotoIds: [],
   intent: 'minimize-waste',
   turfId: null,
+  rockSqFt: 0,
+  featureZones: [],
+  edgingKind: null,
+  edgingLinearFt: 0,
 });
 
 export const useDesign = create<Store>()(
@@ -214,6 +237,62 @@ export const useDesign = create<Store>()(
                 current: {
                   ...s.current,
                   heroPhotoIds: s.current.heroPhotoIds.filter((p) => p !== id),
+                },
+              }
+            : s,
+        ),
+      setTurf: (turfId) =>
+        set((s) => (s.current ? { current: { ...s.current, turfId } } : s)),
+      setIntent: (intent) =>
+        set((s) => (s.current ? { current: { ...s.current, intent } } : s)),
+      setRockSqFt: (rockSqFt) =>
+        set((s) => (s.current ? { current: { ...s.current, rockSqFt: Math.max(0, rockSqFt) } } : s)),
+      addFeatureZone: (kind, sqft) =>
+        set((s) =>
+          s.current
+            ? {
+                current: {
+                  ...s.current,
+                  featureZones: [
+                    ...s.current.featureZones,
+                    { id: crypto.randomUUID(), kind, sqft: Math.max(0, sqft) },
+                  ],
+                },
+              }
+            : s,
+        ),
+      updateFeatureZone: (id, patch) =>
+        set((s) =>
+          s.current
+            ? {
+                current: {
+                  ...s.current,
+                  featureZones: s.current.featureZones.map((z) =>
+                    z.id === id ? { ...z, ...patch, sqft: Math.max(0, patch.sqft ?? z.sqft) } : z,
+                  ),
+                },
+              }
+            : s,
+        ),
+      removeFeatureZone: (id) =>
+        set((s) =>
+          s.current
+            ? {
+                current: {
+                  ...s.current,
+                  featureZones: s.current.featureZones.filter((z) => z.id !== id),
+                },
+              }
+            : s,
+        ),
+      setEdging: (edgingKind, edgingLinearFt) =>
+        set((s) =>
+          s.current
+            ? {
+                current: {
+                  ...s.current,
+                  edgingKind,
+                  edgingLinearFt: Math.max(0, edgingLinearFt),
                 },
               }
             : s,

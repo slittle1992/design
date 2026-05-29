@@ -114,9 +114,7 @@ export default function PlanPage() {
 
       <StepFooter
         primaryLabel="Continue"
-        onPrimary={() => {
-          alert('Turf selection, design intent, and render are coming up next.');
-        }}
+        onPrimary={() => router.push('/turf')}
       />
     </main>
   );
