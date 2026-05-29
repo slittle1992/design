@@ -9,6 +9,8 @@ import {
   type Style,
   type Profile,
 } from '@/lib/store';
+import { StepHeader } from '@/components/StepHeader';
+import { StepFooter } from '@/components/StepFooter';
 
 const AUDIENCES: { id: Audience; label: string }[] = [
   { id: 'kids', label: 'Kids' },
@@ -79,142 +81,135 @@ export default function DiscoveryPage() {
   const canContinue = current.homeownerName.trim().length > 0;
 
   return (
-    <main className="min-h-screen bg-cream text-field-darker">
-      <header className="bg-field text-cream px-6 py-4 flex items-center justify-between border-b-4 border-field-darker">
-        <button onClick={() => router.push('/')} className="text-xl font-bold">
-          ←
-        </button>
-        <h1 className="text-2xl font-display font-black">Discovery</h1>
-        <span className="text-sm font-semibold opacity-80">1 / 8</span>
-      </header>
+    <main className="min-h-screen flex flex-col">
+      <StepHeader step={1} title="Discovery" backHref="/" />
 
-      <section className="p-6 max-w-3xl mx-auto space-y-8 pb-32">
-        <Field label="Homeowner">
-          <input
-            type="text"
-            value={current.homeownerName}
-            onChange={(e) => setHomeowner(e.target.value, current.address)}
-            placeholder="Name"
-            className="w-full min-h-tap-md rounded-2xl border-4 border-field-darker bg-cream px-4 text-xl font-semibold focus:outline-none focus:border-field"
-          />
-          <input
-            type="text"
-            value={current.address}
-            onChange={(e) => setHomeowner(current.homeownerName, e.target.value)}
-            placeholder="Address"
-            className="mt-3 w-full min-h-tap-md rounded-2xl border-4 border-field-darker bg-cream px-4 text-xl font-semibold focus:outline-none focus:border-field"
-          />
-        </Field>
+      <section className="flex-1 px-6 sm:px-8 py-10 max-w-3xl mx-auto w-full space-y-12">
+        <Block label="Homeowner">
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={current.homeownerName}
+              onChange={(e) => setHomeowner(e.target.value, current.address)}
+              placeholder="Name"
+              className="input"
+            />
+            <input
+              type="text"
+              value={current.address}
+              onChange={(e) => setHomeowner(current.homeownerName, e.target.value)}
+              placeholder="Address"
+              className="input"
+            />
+          </div>
+        </Block>
 
-        <Field label="Who uses the yard?" subtitle="Tap all that apply">
-          <PillRow>
+        <Block label="Who uses the yard" hint="Select all that apply">
+          <ChipRow>
             {AUDIENCES.map((a) => (
-              <Pill
+              <Chip
                 key={a.id}
                 selected={current.profile.audiences.includes(a.id)}
                 onClick={() => toggleAudience(a.id)}
               >
                 {a.label}
-              </Pill>
+              </Chip>
             ))}
-          </PillRow>
-        </Field>
+          </ChipRow>
+        </Block>
 
-        <Field label="What's wrong with the yard today?">
-          <PillRow>
+        <Block label="What's wrong with the yard today">
+          <ChipRow>
             {PAINS.map((p) => (
-              <Pill
+              <Chip
                 key={p.id}
                 selected={current.profile.pains.includes(p.id)}
                 onClick={() => togglePain(p.id)}
               >
                 {p.label}
-              </Pill>
+              </Chip>
             ))}
-          </PillRow>
-        </Field>
+          </ChipRow>
+        </Block>
 
-        <Field label="Style they're going for">
-          <PillRow>
+        <Block label="Style they're going for">
+          <ChipRow>
             {STYLES.map((s) => (
-              <Pill
+              <Chip
                 key={s.id}
                 selected={current.profile.style === s.id}
                 onClick={() => setProfile({ style: s.id })}
               >
                 {s.label}
-              </Pill>
+              </Chip>
             ))}
-          </PillRow>
-        </Field>
+          </ChipRow>
+        </Block>
 
-        <Field label="Budget band">
-          <PillRow>
+        <Block label="Budget">
+          <ChipRow>
             {BUDGETS.map((b) => (
-              <Pill
+              <Chip
                 key={b.id}
                 selected={current.profile.budgetBand === b.id}
                 onClick={() => setProfile({ budgetBand: b.id })}
               >
                 {b.label}
-              </Pill>
+              </Chip>
             ))}
-          </PillRow>
-        </Field>
+          </ChipRow>
+        </Block>
 
-        <Field label="Timeline">
-          <PillRow>
+        <Block label="Timeline">
+          <ChipRow>
             {TIMELINES.map((t) => (
-              <Pill
+              <Chip
                 key={t.id}
                 selected={current.profile.timeline === t.id}
                 onClick={() => setProfile({ timeline: t.id })}
               >
                 {t.label}
-              </Pill>
+              </Chip>
             ))}
-          </PillRow>
-        </Field>
+          </ChipRow>
+        </Block>
       </section>
 
-      <footer className="fixed bottom-0 inset-x-0 bg-cream border-t-4 border-field-darker p-4 flex justify-end">
-        <button
-          disabled={!canContinue}
-          onClick={() => router.push('/capture')}
-          className="btn-primary text-2xl min-h-tap-lg w-full max-w-sm disabled:opacity-40 disabled:active:scale-100"
-        >
-          Continue →
-        </button>
-      </footer>
+      <StepFooter
+        primaryLabel="Continue"
+        primaryDisabled={!canContinue}
+        onPrimary={() => router.push('/capture')}
+        hint={canContinue ? undefined : 'Enter the homeowner name to continue'}
+      />
     </main>
   );
 }
 
-function Field({
+function Block({
   label,
-  subtitle,
+  hint,
   children,
 }: {
   label: string;
-  subtitle?: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <div className="mb-3">
-        <h2 className="text-2xl font-display font-black">{label}</h2>
-        {subtitle && <p className="text-base font-semibold opacity-70">{subtitle}</p>}
+      <div className="mb-4">
+        <p className="label">{label}</p>
+        {hint && <p className="mt-1 text-[13px] text-ink-muted">{hint}</p>}
       </div>
       {children}
     </div>
   );
 }
 
-function PillRow({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-wrap gap-3">{children}</div>;
+function ChipRow({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-wrap gap-2">{children}</div>;
 }
 
-function Pill({
+function Chip({
   children,
   selected,
   onClick,
@@ -224,7 +219,7 @@ function Pill({
   onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className={`pill ${selected ? 'pill-selected' : ''}`}>
+    <button onClick={onClick} className={`chip ${selected ? 'chip-selected' : ''}`}>
       {children}
     </button>
   );

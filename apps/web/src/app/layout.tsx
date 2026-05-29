@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from 'next';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Homefield Design',
-  description: 'In-home artificial turf design and presentation tool.',
+  title: 'Homefield',
+  description: 'Artificial turf design and in-home presentation.',
 };
 
 export const viewport: Viewport = {
@@ -11,13 +13,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#1d5a3a',
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
-      <body className="h-full font-body">{children}</body>
+    <html lang="en" className={`h-full ${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className="h-full font-sans">{children}</body>
     </html>
   );
 }

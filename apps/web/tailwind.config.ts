@@ -5,30 +5,45 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Pulled from the Homefield logo: dark forest green on cream.
-        field: {
-          50: '#f7f3e7',
-          100: '#f0e9d3',
-          200: '#e3d6a8',
-          DEFAULT: '#1d5a3a',
-          dark: '#13422a',
-          darker: '#0b2a1a',
+        // Linear/Stripe-style restrained palette.
+        ink: {
+          DEFAULT: '#0a0a0a',
+          soft: '#18181b',
+          muted: '#52525b',
+          subtle: '#a1a1aa',
         },
-        cream: {
-          DEFAULT: '#f5ecd6',
-          dark: '#e8dcb8',
+        surface: {
+          DEFAULT: '#ffffff',
+          soft: '#fafafa',
+          sunken: '#f4f4f5',
+        },
+        line: {
+          DEFAULT: '#e4e4e7',
+          strong: '#d4d4d8',
+        },
+        // Single accent — Homefield green, restrained, used only on CTAs and
+        // selected states. Hairline-thin rather than chunky.
+        accent: {
+          DEFAULT: '#1d5a3a',
+          hover: '#164a2e',
+          soft: '#f0f6f2',
+        },
+        danger: {
+          DEFAULT: '#b91c1c',
+          soft: '#fef2f2',
         },
       },
       fontFamily: {
-        // Placeholder until brand fonts are provided. Bold sans for outdoor legibility.
-        display: ['ui-rounded', 'system-ui', 'sans-serif'],
-        body: ['system-ui', 'sans-serif'],
+        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
       },
-      // Touch targets sized for outdoor iPad use. Minimum tap = 56px, ideal = 72px.
       spacing: {
-        'tap-sm': '56px',
-        'tap-md': '72px',
-        'tap-lg': '96px',
+        'tap-sm': '44px',
+        'tap-md': '52px',
+        'tap-lg': '60px',
+      },
+      letterSpacing: {
+        tightest: '-0.04em',
       },
     },
   },

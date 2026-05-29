@@ -39,6 +39,7 @@ type Store = {
   setHomeowner: (name: string, address: string) => void;
   setLawn: (polygon: Polygon, sqft: number, vertices: Polygon) => void;
   addHeroPhoto: (id: string) => void;
+  removeHeroPhoto: (id: string) => void;
   reset: () => void;
 };
 
@@ -87,6 +88,17 @@ export const useDesign = create<Store>()(
         set((s) =>
           s.current
             ? { current: { ...s.current, heroPhotoIds: [...s.current.heroPhotoIds, id] } }
+            : s,
+        ),
+      removeHeroPhoto: (id) =>
+        set((s) =>
+          s.current
+            ? {
+                current: {
+                  ...s.current,
+                  heroPhotoIds: s.current.heroPhotoIds.filter((p) => p !== id),
+                },
+              }
             : s,
         ),
       reset: () => set({ current: null }),

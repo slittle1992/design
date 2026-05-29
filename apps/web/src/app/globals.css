@@ -3,19 +3,19 @@
 @tailwind utilities;
 
 /*
- * Outdoor-iPad defaults.
- * - High-contrast cream-on-green or green-on-cream only.
- * - No subtle shadows or transparency that wash out in direct sun.
- * - Touch targets default 72px tall.
- * - Disable text selection on UI chrome to avoid accidental highlights on touch.
+ * Quiet-luxury design system. Linear/Stripe minimal — white surfaces, deep
+ * ink type, hairline 1px lines, single restrained accent. Type-led hierarchy;
+ * generous whitespace; touch targets stay legible (44–60px) without chunky
+ * borders.
  */
 @layer base {
   html,
   body {
-    @apply h-full bg-cream text-field-darker;
-    -webkit-font-smoothing: antialiased;
+    @apply h-full bg-surface text-ink antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'ss01', 'cv11';
   }
 
   button,
@@ -23,29 +23,54 @@
     @apply select-none;
     touch-action: manipulation;
   }
+
+  ::selection {
+    @apply bg-ink text-surface;
+  }
 }
 
 @layer components {
+  /* Primary CTA: solid ink, no border, no shadow. Linear-style. */
   .btn-primary {
-    @apply min-h-tap-md inline-flex items-center justify-center rounded-2xl bg-field px-6 text-lg font-bold text-cream
-           active:bg-field-dark active:scale-[0.98] transition-transform border-4 border-field-dark;
+    @apply min-h-tap-md inline-flex items-center justify-center rounded-lg bg-ink px-5 text-[15px] font-medium text-surface
+           transition-colors hover:bg-ink-soft active:bg-ink-soft disabled:bg-line-strong disabled:text-ink-subtle;
   }
 
+  /* Secondary: hairline outline, ink type. */
   .btn-secondary {
-    @apply min-h-tap-md inline-flex items-center justify-center rounded-2xl bg-cream px-6 text-lg font-bold text-field
-           active:bg-cream-dark active:scale-[0.98] transition-transform border-4 border-field;
+    @apply min-h-tap-md inline-flex items-center justify-center rounded-lg bg-surface px-5 text-[15px] font-medium text-ink
+           border border-line transition-colors hover:bg-surface-soft active:bg-surface-sunken;
+  }
+
+  .btn-ghost {
+    @apply min-h-tap-sm inline-flex items-center justify-center rounded-lg px-3 text-[14px] font-medium text-ink-muted
+           hover:text-ink hover:bg-surface-soft transition-colors;
   }
 
   .card {
-    @apply rounded-3xl bg-cream border-4 border-field-darker p-6;
+    @apply rounded-xl bg-surface border border-line;
   }
 
-  .pill {
-    @apply min-h-tap-sm inline-flex items-center justify-center rounded-full px-5 text-base font-semibold
-           border-2 border-field-darker bg-cream text-field-darker active:bg-cream-dark transition-transform;
+  .input {
+    @apply w-full min-h-tap-md rounded-lg border border-line bg-surface px-4 text-[15px] text-ink
+           placeholder:text-ink-subtle focus:outline-none focus:border-ink focus:ring-2 focus:ring-ink/5 transition-colors;
   }
 
-  .pill-selected {
-    @apply bg-field text-cream border-field-darker;
+  /* Pill / chip — unselected: subtle, selected: ink-filled. */
+  .chip {
+    @apply min-h-tap-sm inline-flex items-center justify-center rounded-full px-4 text-[14px] font-medium
+           border border-line bg-surface text-ink-soft hover:bg-surface-soft transition-colors;
+  }
+
+  .chip-selected {
+    @apply bg-ink text-surface border-ink hover:bg-ink-soft;
+  }
+
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted;
+  }
+
+  .display {
+    @apply font-semibold tracking-tightest;
   }
 }

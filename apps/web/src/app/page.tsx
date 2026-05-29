@@ -13,32 +13,38 @@ export default function Home() {
     router.push('/discovery');
   };
 
-  const resume = () => {
-    router.push('/discovery');
-  };
-
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-field text-cream px-6 gap-8">
-      <div className="text-center">
-        <h1 className="text-5xl font-display font-black tracking-tight">HomeField</h1>
-        <p className="mt-2 text-xl font-semibold opacity-90">Artificial Turf Co.</p>
-      </div>
+    <main className="min-h-screen flex flex-col">
+      <header className="px-8 py-6 flex items-center justify-between">
+        <span className="text-[15px] font-semibold tracking-tight">Homefield</span>
+        <span className="text-[12px] text-ink-muted">Design Studio</span>
+      </header>
 
-      <div className="flex flex-col gap-4 w-full max-w-md">
-        <button onClick={begin} className="btn-secondary text-2xl min-h-tap-lg">
-          Start New Design
-        </button>
+      <section className="flex-1 flex flex-col justify-center px-8 max-w-2xl mx-auto w-full">
+        <p className="label mb-6">In-home presentation</p>
+        <h1 className="display text-[56px] sm:text-[72px] leading-[0.95]">
+          Design the yard, on site.
+        </h1>
+        <p className="mt-6 text-lg text-ink-muted max-w-lg">
+          Capture the lawn, walk through options, and leave with a signed design — built for one
+          tablet, one homeowner, one conversation.
+        </p>
 
-        {current && current.homeownerName && (
-          <button onClick={resume} className="btn-primary text-xl min-h-tap-md border-cream">
-            Resume — {current.homeownerName || 'untitled'}
+        <div className="mt-12 flex flex-col sm:flex-row gap-3">
+          <button onClick={begin} className="btn-primary px-6">
+            Start new design
           </button>
-        )}
-      </div>
+          {current?.homeownerName && (
+            <button onClick={() => router.push('/discovery')} className="btn-secondary px-6">
+              Resume — {current.homeownerName}
+            </button>
+          )}
+        </div>
+      </section>
 
-      <p className="text-sm opacity-70 text-center max-w-sm">
-        Field-mode iPad presentation. Works offline. Saves locally until you reach a signal.
-      </p>
+      <footer className="px-8 py-6 text-[12px] text-ink-subtle">
+        Works offline. Saves locally until you reach a signal.
+      </footer>
     </main>
   );
 }

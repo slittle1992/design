@@ -4,11 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useDesign } from '@/lib/store';
 import { LawnTrace } from '@/components/LawnTrace';
+import { StepHeader } from '@/components/StepHeader';
+import { StepFooter } from '@/components/StepFooter';
+import { HeroPhotos } from '@/components/HeroPhotos';
 import { staticMapUrl, type LatLng } from '@/lib/maps';
 
 const TILE_WIDTH = 640;
 const TILE_HEIGHT = 640;
-const TILE_SCALE: 1 | 2 = 2; // retina; logical 640x640 with 1280x1280 pixel res
+const TILE_SCALE: 1 | 2 = 2;
 const DEFAULT_ZOOM = 20;
 
 export default function CapturePage() {
@@ -16,7 +19,8 @@ export default function CapturePage() {
   const current = useDesign((s) => s.current);
   const setLawn = useDesign((s) => s.setLawn);
   const setHomeowner = useDesign((s) => s.setHomeowner);
-  const setHeroPhoto = useDesign((s) => s.addHeroPhoto);
+  const addHeroPhoto = useDesign((s) => s.addHeroPhoto);
+  const removeHeroPhoto = useDesign((s) => s.removeHeroPhoto);
 
   const [address, setAddress] = useState(current?.address ?? '');
   const [loading, setLoading] = useState(false);
@@ -51,75 +55,81 @@ export default function CapturePage() {
   const onPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setError(null);
     const reader = new FileReader();
     reader.onload = () => {
       const id = crypto.randomUUID();
       try {
         localStorage.setItem(`heroPhoto:${id}`, reader.result as string);
-        setHeroPhoto(id);
+        addHeroPhoto(id);
       } catch {
-        setError('Photo too large for local storage. Compress and retry.');
+        setError('Photo too large for local storage. Try a smaller image.');
       }
     };
+    reader.onerror = () => setError('Could not read photo file.');
     reader.readAsDataURL(file);
-  };
-
-  const onContinue = () => {
-    router.push('/plan');
+    // Reset input so the same file can be re-selected if needed.
+    e.target.value = '';
   };
 
   if (!current) return null;
 
-  const tileUrl = location && apiKey
-    ? staticMapUrl(
-        { center: location, zoom, widthPx: TILE_WIDTH, heightPx: TILE_HEIGHT, scale: TILE_SCALE },
-        apiKey,
-      )
-    : null;
+  const tileUrl =
+    location && apiKey
+      ? staticMapUrl(
+          {
+            center: location,
+            zoom,
+            widthPx: TILE_WIDTH,
+            heightPx: TILE_HEIGHT,
+            scale: TILE_SCALE,
+          },
+          apiKey,
+        )
+      : null;
+
+  const hasLawn = !!current.lawnPolygon && current.lawnSqFt >= 50;
 
   return (
-    <main className="min-h-screen bg-cream text-field-darker pb-32">
-      <header className="bg-field text-cream px-6 py-4 flex items-center justify-between border-b-4 border-field-darker">
-        <button onClick={() => router.push('/discovery')} className="text-xl font-bold">
-          ←
-        </button>
-        <h1 className="text-2xl font-display font-black">Walk & Capture</h1>
-        <span className="text-sm font-semibold opacity-80">2 / 8</span>
-      </header>
+    <main className="min-h-screen flex flex-col">
+      <StepHeader step={2} title="Walk & Capture" backHref="/discovery" />
 
-      <section className="p-6 max-w-3xl mx-auto space-y-6">
-        <div className="card space-y-4">
-          <h2 className="text-2xl font-display font-black">Address</h2>
-          <div className="flex flex-col sm:flex-row gap-3">
+      <section className="flex-1 px-6 sm:px-8 py-10 max-w-3xl mx-auto w-full space-y-10">
+        <div>
+          <p className="label">Address</p>
+          <div className="mt-3 flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="123 Main St, Austin TX"
-              className="flex-1 min-h-tap-md rounded-2xl border-4 border-field-darker bg-cream px-4 text-xl font-semibold focus:outline-none focus:border-field"
+              className="input flex-1"
             />
-            <button onClick={geocode} disabled={loading} className="btn-primary text-xl min-h-tap-md">
-              {loading ? 'Loading…' : 'Load Satellite'}
+            <button onClick={geocode} disabled={loading} className="btn-secondary px-5">
+              {loading ? 'Loading…' : 'Load satellite'}
             </button>
           </div>
-          {error && <p className="text-red-700 font-bold">{error}</p>}
+          {error && (
+            <p className="mt-2 text-[13px] text-danger">{error}</p>
+          )}
           {!apiKey && (
-            <p className="text-sm font-semibold opacity-70">
-              Set <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> in{' '}
-              <code>apps/web/.env.local</code> to load satellite imagery.
+            <p className="mt-2 text-[13px] text-ink-muted">
+              Google Maps key not available in this environment. Set
+              <code className="font-mono"> NEXT_PUBLIC_GOOGLE_MAPS_API_KEY </code>
+              and redeploy.
             </p>
           )}
         </div>
 
         {tileUrl && location && (
-          <div className="card space-y-4">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-2xl font-display font-black">Trace the lawn</h2>
+          <div>
+            <div className="flex items-baseline justify-between mb-3">
+              <p className="label">Trace the lawn</p>
               <div className="text-right">
-                <div className="text-3xl font-display font-black tabular-nums">
+                <span className="display text-2xl tabular-nums">
                   {Math.round(tracedSqft).toLocaleString()}
-                </div>
-                <div className="text-sm font-semibold opacity-70">sq ft</div>
+                </span>
+                <span className="ml-1 text-[13px] text-ink-muted">sq ft</span>
               </div>
             </div>
 
@@ -137,19 +147,19 @@ export default function CapturePage() {
               }}
             />
 
-            <div className="flex items-center gap-3">
-              <span className="font-semibold">Zoom</span>
+            <div className="mt-4 flex items-center gap-3 text-[13px]">
+              <span className="text-ink-muted">Zoom</span>
               <button
                 onClick={() => setZoom((z) => Math.max(17, z - 1))}
-                className="pill"
+                className="chip"
                 disabled={zoom <= 17}
               >
                 −
               </button>
-              <span className="font-bold tabular-nums">{zoom}</span>
+              <span className="tabular-nums font-medium">{zoom}</span>
               <button
                 onClick={() => setZoom((z) => Math.min(21, z + 1))}
-                className="pill"
+                className="chip"
                 disabled={zoom >= 21}
               >
                 +
@@ -158,15 +168,16 @@ export default function CapturePage() {
           </div>
         )}
 
-        <div className="card space-y-3">
-          <h2 className="text-2xl font-display font-black">Hero photo</h2>
-          <p className="text-base font-semibold opacity-70">
-            One photo from the patio looking at the yard. Used for the final render.
+        <div>
+          <p className="label">Hero photo</p>
+          <p className="mt-1 text-[13px] text-ink-muted">
+            From the patio looking at the yard. Used for the final render.
           </p>
-          <label className="btn-secondary text-xl min-h-tap-md inline-flex w-full sm:w-auto cursor-pointer">
-            {current.heroPhotoIds.length > 0
-              ? `${current.heroPhotoIds.length} photo${current.heroPhotoIds.length > 1 ? 's' : ''} captured ✓ — add another`
-              : 'Take / select photo'}
+
+          <HeroPhotos ids={current.heroPhotoIds} onRemove={removeHeroPhoto} />
+
+          <label className="mt-4 btn-secondary inline-flex cursor-pointer">
+            {current.heroPhotoIds.length > 0 ? 'Add another photo' : 'Take or select photo'}
             <input
               type="file"
               accept="image/*"
@@ -178,15 +189,12 @@ export default function CapturePage() {
         </div>
       </section>
 
-      <footer className="fixed bottom-0 inset-x-0 bg-cream border-t-4 border-field-darker p-4 flex justify-end">
-        <button
-          disabled={!current.lawnPolygon || current.lawnSqFt < 50}
-          onClick={onContinue}
-          className="btn-primary text-2xl min-h-tap-lg w-full max-w-sm disabled:opacity-40 disabled:active:scale-100"
-        >
-          Continue →
-        </button>
-      </footer>
+      <StepFooter
+        primaryLabel="Continue"
+        primaryDisabled={!hasLawn}
+        onPrimary={() => router.push('/plan')}
+        hint={hasLawn ? undefined : 'Trace the lawn to continue'}
+      />
     </main>
   );
 }

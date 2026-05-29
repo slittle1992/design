@@ -72,7 +72,7 @@ export function LawnTrace({
   return (
     <div className="space-y-3">
       <div
-        className="relative w-full overflow-hidden rounded-2xl border-4 border-field-darker bg-field-darker"
+        className="relative w-full overflow-hidden rounded-xl border border-line bg-ink"
         style={{ aspectRatio: `${widthPx} / ${heightPx}` }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -91,9 +91,9 @@ export function LawnTrace({
           {vertices.length >= 2 && (
             <path
               d={pathD || `M ${vertices.map((p) => `${p.x} ${p.y}`).join(' L ')}`}
-              fill="rgba(245, 236, 214, 0.35)"
-              stroke="#f5ecd6"
-              strokeWidth={6}
+              fill="rgba(29, 90, 58, 0.25)"
+              stroke="#ffffff"
+              strokeWidth={4}
               strokeLinejoin="round"
               strokeLinecap="round"
             />
@@ -103,34 +103,33 @@ export function LawnTrace({
               key={i}
               cx={v.x}
               cy={v.y}
-              r={18}
-              fill="#1d5a3a"
-              stroke="#f5ecd6"
-              strokeWidth={4}
+              r={14}
+              fill="#ffffff"
+              stroke="#0a0a0a"
+              strokeWidth={2}
               onPointerDown={(e) => removeVertex(i, e)}
             />
           ))}
         </svg>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button onClick={undo} disabled={vertices.length === 0} className="pill disabled:opacity-40">
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={undo} disabled={vertices.length === 0} className="chip disabled:opacity-40">
           ↶ Undo
         </button>
         <button
           onClick={() => setSmooth((s) => !s)}
-          className={`pill ${smooth ? 'pill-selected' : ''}`}
+          className={`chip ${smooth ? 'chip-selected' : ''}`}
         >
-          {smooth ? 'Smooth curves ✓' : 'Smooth curves'}
+          Smooth curves
         </button>
-        <button onClick={clear} disabled={vertices.length === 0} className="pill disabled:opacity-40">
+        <button onClick={clear} disabled={vertices.length === 0} className="chip disabled:opacity-40">
           Clear
         </button>
       </div>
 
-      <p className="text-base font-semibold opacity-70">
-        Tap to add a corner. Tap a corner to remove it. Smooth curves on for irregular
-        property lines, off for straight edges.
+      <p className="text-[13px] text-ink-muted">
+        Tap to add a corner. Tap a corner to remove it.
       </p>
     </div>
   );
