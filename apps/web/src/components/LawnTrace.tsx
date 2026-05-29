@@ -38,13 +38,16 @@ export function LawnTrace({
 
   const update = (next: Point[]) => {
     setVertices(next);
-    const dense = smooth ? smoothClosed(next, 12) : [...next];
-    const areaPx = polygonArea(dense);
-    // Convert px² → ft². metersPerPixel uses center latitude (good approximation
-    // at the scale of a single back yard).
+    const densePx = smooth ? smoothClosed(next, 12) : [...next];
+    const areaPx = polygonArea(densePx);
+    // Web Mercator ground resolution at the tile's center latitude. Good
+    // approximation at the scale of a single back yard (sub-1% error).
     const ftPerPx = pixelsToFeet(1, centerLat, zoom, scale);
     const sqft = areaPx * ftPerPx * ftPerPx;
-    onChange({ vertices: next, polygon: dense, sqft });
+    // Convert the dense polygon to feet so downstream geometry (strip-packer,
+    // architectural rendering) operates in real-world units.
+    const polygonFt = densePx.map((p) => ({ x: p.x * ftPerPx, y: p.y * ftPerPx }));
+    onChange({ vertices: next, polygon: polygonFt, sqft });
   };
 
   const onCanvasTap = (e: React.PointerEvent<SVGSVGElement>) => {

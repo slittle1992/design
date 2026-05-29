@@ -8,6 +8,7 @@ import { StepHeader } from '@/components/StepHeader';
 import { StepFooter } from '@/components/StepFooter';
 import { HeroPhotos } from '@/components/HeroPhotos';
 import { staticMapUrl, type LatLng } from '@/lib/maps';
+import { resizeImageToDataUrl } from '@/lib/image';
 
 const TILE_WIDTH = 640;
 const TILE_HEIGHT = 640;
@@ -28,6 +29,7 @@ export default function CapturePage() {
   const [location, setLocation] = useState<LatLng | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [tracedSqft, setTracedSqft] = useState(0);
+  const [photoSaving, setPhotoSaving] = useState(false);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
@@ -52,24 +54,28 @@ export default function CapturePage() {
     }
   };
 
-  const onPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setError(null);
-    const reader = new FileReader();
-    reader.onload = () => {
+    setPhotoSaving(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 1600, 0.85);
       const id = crypto.randomUUID();
       try {
-        localStorage.setItem(`heroPhoto:${id}`, reader.result as string);
-        addHeroPhoto(id);
+        localStorage.setItem(`heroPhoto:${id}`, dataUrl);
       } catch {
-        setError('Photo too large for local storage. Try a smaller image.');
+        throw new Error(
+          'Out of local storage space. Remove an existing photo and try again.',
+        );
       }
-    };
-    reader.onerror = () => setError('Could not read photo file.');
-    reader.readAsDataURL(file);
-    // Reset input so the same file can be re-selected if needed.
-    e.target.value = '';
+      addHeroPhoto(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save photo.');
+    } finally {
+      setPhotoSaving(false);
+    }
   };
 
   if (!current) return null;
@@ -176,16 +182,28 @@ export default function CapturePage() {
 
           <HeroPhotos ids={current.heroPhotoIds} onRemove={removeHeroPhoto} />
 
-          <label className="mt-4 btn-secondary inline-flex cursor-pointer">
-            {current.heroPhotoIds.length > 0 ? 'Add another photo' : 'Take or select photo'}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={onPhoto}
-            />
-          </label>
+          <div className="mt-4 flex items-center gap-3">
+            <label className={`btn-secondary inline-flex cursor-pointer ${photoSaving ? 'opacity-60 pointer-events-none' : ''}`}>
+              {photoSaving
+                ? 'Saving…'
+                : current.heroPhotoIds.length > 0
+                  ? 'Add another photo'
+                  : 'Take or select photo'}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={onPhoto}
+                disabled={photoSaving}
+              />
+            </label>
+            {current.heroPhotoIds.length > 0 && !photoSaving && (
+              <span className="text-[13px] text-ink-muted">
+                {current.heroPhotoIds.length} saved
+              </span>
+            )}
+          </div>
         </div>
       </section>
 
