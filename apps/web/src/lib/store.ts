@@ -15,6 +15,7 @@ export type CutoutKind = 'pool' | 'flower-bed' | 'tree' | 'patio' | 'equipment' 
 export type Cutout = {
   id: string;
   kind: CutoutKind;
+  closed: boolean; // false while user is still plotting points
   vertices: Polygon; // pixel-space, for re-editing on the satellite tile
   polygonFt: Polygon; // foot-space, smoothed, for sqft + strip-packer math
 };
@@ -44,6 +45,7 @@ export type Design = {
   profile: Profile;
   lawnPolygon: Polygon | null;
   lawnVertices: Polygon | null; // the tap-anchors before smoothing — for re-editing
+  lawnClosed: boolean; // false while user is still plotting; true after Done
   lawnSqFt: number; // gross lawn area; net is computed via netLawnSqFt(design)
   cutouts: Cutout[];
   heroPhotoIds: string[];
@@ -57,9 +59,11 @@ type Store = {
   setProfile: (patch: Partial<Profile>) => void;
   setHomeowner: (name: string, address: string) => void;
   setLawn: (polygon: Polygon, sqft: number, vertices: Polygon) => void;
+  setLawnClosed: (closed: boolean) => void;
   addCutout: (kind: CutoutKind) => string; // returns the new cutout id
   updateCutout: (id: string, vertices: Polygon, polygonFt: Polygon) => void;
   setCutoutKind: (id: string, kind: CutoutKind) => void;
+  setCutoutClosed: (id: string, closed: boolean) => void;
   removeCutout: (id: string) => void;
   addHeroPhoto: (id: string) => void;
   removeHeroPhoto: (id: string) => void;
@@ -105,6 +109,7 @@ const blankDesign = (): Design => ({
   profile: { ...emptyProfile },
   lawnPolygon: null,
   lawnVertices: null,
+  lawnClosed: false,
   lawnSqFt: 0,
   cutouts: [],
   heroPhotoIds: [],
@@ -131,6 +136,8 @@ export const useDesign = create<Store>()(
             ? { current: { ...s.current, lawnPolygon, lawnVertices, lawnSqFt } }
             : s,
         ),
+      setLawnClosed: (lawnClosed) =>
+        set((s) => (s.current ? { current: { ...s.current, lawnClosed } } : s)),
       addCutout: (kind) => {
         const id = crypto.randomUUID();
         set((s) =>
@@ -138,7 +145,10 @@ export const useDesign = create<Store>()(
             ? {
                 current: {
                   ...s.current,
-                  cutouts: [...s.current.cutouts, { id, kind, vertices: [], polygonFt: [] }],
+                  cutouts: [
+                    ...s.current.cutouts,
+                    { id, kind, closed: false, vertices: [], polygonFt: [] },
+                  ],
                 },
               }
             : s,
@@ -165,6 +175,17 @@ export const useDesign = create<Store>()(
                 current: {
                   ...s.current,
                   cutouts: s.current.cutouts.map((c) => (c.id === id ? { ...c, kind } : c)),
+                },
+              }
+            : s,
+        ),
+      setCutoutClosed: (id, closed) =>
+        set((s) =>
+          s.current
+            ? {
+                current: {
+                  ...s.current,
+                  cutouts: s.current.cutouts.map((c) => (c.id === id ? { ...c, closed } : c)),
                 },
               }
             : s,

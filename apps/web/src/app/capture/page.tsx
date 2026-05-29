@@ -22,10 +22,12 @@ export default function CapturePage() {
   const router = useRouter();
   const current = useDesign((s) => s.current);
   const setLawn = useDesign((s) => s.setLawn);
+  const setLawnClosed = useDesign((s) => s.setLawnClosed);
   const setHomeowner = useDesign((s) => s.setHomeowner);
   const addCutout = useDesign((s) => s.addCutout);
   const updateCutout = useDesign((s) => s.updateCutout);
   const setCutoutKind = useDesign((s) => s.setCutoutKind);
+  const setCutoutClosed = useDesign((s) => s.setCutoutClosed);
   const removeCutout = useDesign((s) => s.removeCutout);
   const addHeroPhoto = useDesign((s) => s.addHeroPhoto);
   const removeHeroPhoto = useDesign((s) => s.removeHeroPhoto);
@@ -94,12 +96,31 @@ export default function CapturePage() {
     if (activeId === id) setActiveId(LAWN_ID);
   };
 
+  const handleShapeClose = (id: string) => {
+    if (id === LAWN_ID) {
+      setLawnClosed(true);
+    } else {
+      setCutoutClosed(id, true);
+      // After closing a cutout, return focus to the lawn so the rep sees the
+      // comparison naturally.
+      setActiveId(LAWN_ID);
+    }
+  };
+
+  // Existing designs from before this feature have `closed` undefined; treat
+  // those as already-closed since they were drawn in the old auto-fill UX.
+  const lawnClosed = current?.lawnClosed ?? true;
   const lawnVertices = current?.lawnVertices ?? [];
   const cutouts = current?.cutouts ?? [];
 
   const lawnShape: EditableShape = useMemo(
-    () => ({ id: LAWN_ID, kind: 'lawn', vertices: lawnVertices }),
-    [lawnVertices],
+    () => ({
+      id: LAWN_ID,
+      kind: 'lawn',
+      closed: lawnClosed,
+      vertices: lawnVertices,
+    }),
+    [lawnClosed, lawnVertices],
   );
   const cutoutShapes: EditableShape[] = useMemo(
     () =>
@@ -107,6 +128,7 @@ export default function CapturePage() {
         id: c.id,
         kind: 'cutout',
         label: CUTOUT_LABELS[c.kind],
+        closed: c.closed ?? true,
         vertices: c.vertices,
       })),
     [cutouts],
@@ -128,22 +150,15 @@ export default function CapturePage() {
         )
       : null;
 
-  const netSqft = Math.max(
+  const grossSqft = current.lawnSqFt;
+  const cutoutTotalSqft = current.cutouts.reduce(
+    (sum, c) => sum + polyAreaFt(c.polygonFt),
     0,
-    current.lawnSqFt -
-      current.cutouts.reduce((sum, c) => {
-        // Polygons in feet — shoelace via the same formula.
-        let s = 0;
-        for (let i = 0; i < c.polygonFt.length; i++) {
-          const a = c.polygonFt[i]!;
-          const b = c.polygonFt[(i + 1) % c.polygonFt.length]!;
-          s += a.x * b.y - b.x * a.y;
-        }
-        return sum + Math.abs(s) / 2;
-      }, 0),
   );
+  const netSqft = Math.max(0, grossSqft - cutoutTotalSqft);
+  const hasLawn = !!current.lawnPolygon && lawnClosed && netSqft >= 50;
 
-  const hasLawn = !!current.lawnPolygon && netSqft >= 50;
+  const activeShape = activeId === LAWN_ID ? lawnShape : cutoutShapes.find((s) => s.id === activeId);
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -167,9 +182,8 @@ export default function CapturePage() {
           {error && <p className="mt-2 text-[13px] text-danger">{error}</p>}
           {!apiKey && (
             <p className="mt-2 text-[13px] text-ink-muted">
-              Google Maps key not available in this environment. Set
-              <code className="font-mono"> NEXT_PUBLIC_GOOGLE_MAPS_API_KEY </code>
-              and redeploy.
+              Google Maps key not available. Set
+              <code className="font-mono"> NEXT_PUBLIC_GOOGLE_MAPS_API_KEY </code>and redeploy.
             </p>
           )}
         </div>
@@ -178,24 +192,22 @@ export default function CapturePage() {
           <div>
             <div className="flex items-baseline justify-between mb-3">
               <div>
-                <p className="label">Trace the lawn</p>
+                <p className="label">
+                  {activeShape?.kind === 'lawn' ? 'Trace the lawn' : `Mark ${activeShape?.label}`}
+                </p>
                 <p className="text-[13px] text-ink-muted mt-1">
-                  {activeId === LAWN_ID
-                    ? 'Editing lawn outline'
-                    : `Editing ${cutoutShapes.find((s) => s.id === activeId)?.label ?? 'cutout'}`}
+                  {activeShape?.kind === 'cutout'
+                    ? 'Lawn outline hidden so you can focus on what to subtract.'
+                    : current.cutouts.length > 0
+                      ? `${current.cutouts.length} cutout${current.cutouts.length === 1 ? '' : 's'} marked`
+                      : 'Tap the corners of the lawn'}
                 </p>
               </div>
               <div className="text-right">
                 <span className="display text-2xl tabular-nums">
                   {Math.round(netSqft).toLocaleString()}
                 </span>
-                <span className="ml-1 text-[13px] text-ink-muted">sq ft</span>
-                {current.cutouts.length > 0 && (
-                  <p className="text-[11px] text-ink-muted">
-                    net of {current.cutouts.length} cutout
-                    {current.cutouts.length === 1 ? '' : 's'}
-                  </p>
-                )}
+                <span className="ml-1 text-[13px] text-ink-muted">sq ft net</span>
               </div>
             </div>
 
@@ -219,6 +231,7 @@ export default function CapturePage() {
                   updateCutout(id, vertices, polygonFt);
                 }
               }}
+              onShapeClose={handleShapeClose}
             />
 
             <div className="mt-4 flex items-center gap-3 text-[13px]">
@@ -240,9 +253,31 @@ export default function CapturePage() {
               </button>
             </div>
 
+            {/* Comparison math — lawn minus cutouts = real estimate. */}
+            {lawnClosed && grossSqft > 0 && (
+              <div className="mt-6 rounded-xl border border-line p-4 bg-surface-soft">
+                <p className="label">Best estimate</p>
+                <div className="mt-3 space-y-1 font-mono text-[14px] tabular-nums">
+                  <Row label="Lawn outline" value={`${Math.round(grossSqft).toLocaleString()} sq ft`} />
+                  {current.cutouts
+                    .filter((c) => (c.closed ?? true) && polyAreaFt(c.polygonFt) > 0)
+                    .map((c) => (
+                      <Row
+                        key={c.id}
+                        label={`− ${CUTOUT_LABELS[c.kind]}`}
+                        value={`${Math.round(polyAreaFt(c.polygonFt)).toLocaleString()} sq ft`}
+                      />
+                    ))}
+                  <div className="border-t border-line pt-2 mt-2 font-semibold">
+                    <Row label="Net turf area" value={`${Math.round(netSqft).toLocaleString()} sq ft`} />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mt-8">
               <div className="flex items-center justify-between">
-                <p className="label">Cutouts</p>
+                <p className="label">What we work around</p>
                 <button
                   onClick={() => setActiveId(LAWN_ID)}
                   className={`chip ${activeId === LAWN_ID ? 'chip-selected' : ''}`}
@@ -251,59 +286,59 @@ export default function CapturePage() {
                 </button>
               </div>
               <p className="text-[13px] text-ink-muted mt-1">
-                Mark anything we don&apos;t turf over — pools, beds, trees, patios, AC pads.
+                Pools, beds, trees, patios, AC pads — anything we don&apos;t turf over.
               </p>
 
-              <div className="mt-3 space-y-2">
-                {current.cutouts.map((c) => {
-                  const isActive = activeId === c.id;
-                  const sqft = polyAreaFt(c.polygonFt);
-                  return (
-                    <div
-                      key={c.id}
-                      className={`flex items-center gap-3 rounded-lg border p-3 ${
-                        isActive ? 'border-ink bg-surface-soft' : 'border-line'
-                      }`}
-                    >
-                      <select
-                        value={c.kind}
-                        onChange={(e) => setCutoutKind(c.id, e.target.value as CutoutKind)}
-                        className="rounded-md border border-line bg-surface px-2 py-1 text-[14px] font-medium"
+              {current.cutouts.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {current.cutouts.map((c) => {
+                    const isActive = activeId === c.id;
+                    const sqft = polyAreaFt(c.polygonFt);
+                    const closed = c.closed ?? true;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`flex items-center gap-3 rounded-lg border p-3 ${
+                          isActive ? 'border-ink bg-surface-soft' : 'border-line'
+                        }`}
                       >
-                        {CUTOUT_OPTIONS.map((k) => (
-                          <option key={k} value={k}>
-                            {CUTOUT_LABELS[k]}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-[13px] text-ink-muted tabular-nums flex-1">
-                        {sqft > 0 ? `${Math.round(sqft)} sq ft` : 'not drawn'}
-                      </span>
-                      <button
-                        onClick={() => setActiveId(c.id)}
-                        disabled={isActive}
-                        className="chip text-[12px] disabled:opacity-40"
-                      >
-                        {isActive ? 'Editing' : 'Edit'}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveCutout(c.id)}
-                        className="chip text-[12px]"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                        <select
+                          value={c.kind}
+                          onChange={(e) => setCutoutKind(c.id, e.target.value as CutoutKind)}
+                          className="rounded-md border border-line bg-surface px-2 py-1 text-[14px] font-medium"
+                        >
+                          {CUTOUT_OPTIONS.map((k) => (
+                            <option key={k} value={k}>
+                              {CUTOUT_LABELS[k]}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-[13px] text-ink-muted tabular-nums flex-1">
+                          {!closed
+                            ? 'drawing…'
+                            : sqft > 0
+                              ? `${Math.round(sqft)} sq ft`
+                              : 'not drawn'}
+                        </span>
+                        <button
+                          onClick={() => setActiveId(c.id)}
+                          disabled={isActive}
+                          className="chip text-[12px] disabled:opacity-40"
+                        >
+                          {isActive ? 'Editing' : 'Edit'}
+                        </button>
+                        <button onClick={() => handleRemoveCutout(c.id)} className="chip text-[12px]">
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {CUTOUT_OPTIONS.map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => handleAddCutout(k)}
-                    className="chip text-[12px]"
-                  >
+                  <button key={k} onClick={() => handleAddCutout(k)} className="chip text-[12px]">
                     + {CUTOUT_LABELS[k]}
                   </button>
                 ))}
@@ -353,9 +388,24 @@ export default function CapturePage() {
         primaryLabel="Continue"
         primaryDisabled={!hasLawn}
         onPrimary={() => router.push('/plan')}
-        hint={hasLawn ? undefined : 'Trace the lawn to continue'}
+        hint={
+          !current.lawnPolygon || lawnVertices.length === 0
+            ? 'Trace the lawn to continue'
+            : !lawnClosed
+              ? 'Tap "Done" on the lawn to continue'
+              : undefined
+        }
       />
     </main>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
   );
 }
 

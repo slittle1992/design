@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Point, Polygon } from '@homefield/geometry';
 import { polygonArea } from '@homefield/geometry';
 import { smoothClosed, smoothClosedSvgPath } from '@/lib/curves';
@@ -12,6 +12,7 @@ export type EditableShape = {
   id: string;
   kind: ShapeKind;
   label?: string;
+  closed: boolean;
   vertices: Point[]; // pixel space
 };
 
@@ -34,6 +35,7 @@ type Props = {
   activeId: string;
   onActiveChange: (id: string) => void;
   onShapeChange: (change: ShapeChange) => void;
+  onShapeClose: (id: string) => void;
   smooth?: boolean;
   onSmoothChange?: (smooth: boolean) => void;
 };
@@ -41,6 +43,7 @@ type Props = {
 const DRAG_THRESHOLD_PX = 6;
 const VERTEX_RADIUS = 14;
 const VERTEX_HIT = 22;
+const SNAP_CLOSE_PX = 24; // tap near the first vertex closes an open shape
 
 export function LawnTrace({
   imageUrl,
@@ -54,6 +57,7 @@ export function LawnTrace({
   activeId,
   onActiveChange,
   onShapeChange,
+  onShapeClose,
   smooth = true,
   onSmoothChange,
 }: Props) {
@@ -61,8 +65,10 @@ export function LawnTrace({
   const allShapes: EditableShape[] = [lawn, ...cutouts];
   const active = allShapes.find((s) => s.id === activeId) ?? lawn;
   const ftPerPx = pixelsToFeet(1, centerLat, zoom, scale);
+  // While editing a cutout, the lawn (and any other shapes) drop out so the
+  // rep can focus on marking just what isn't covered.
+  const focusMode: 'lawn' | 'cutout' = active.kind;
 
-  // Drag state: which vertex is being dragged, and the starting screen position.
   const dragRef = useRef<{
     shapeId: string;
     index: number;
@@ -72,13 +78,13 @@ export function LawnTrace({
   } | null>(null);
 
   const emitChange = (shape: EditableShape, nextVertices: Point[]) => {
-    const dense = smooth && nextVertices.length >= 3 ? smoothClosed(nextVertices, 12) : [...nextVertices];
+    const dense =
+      smooth && nextVertices.length >= 3 ? smoothClosed(nextVertices, 12) : [...nextVertices];
     const polygonFt = dense.map((p) => ({ x: p.x * ftPerPx, y: p.y * ftPerPx }));
     const sqft = polygonArea(polygonFt);
     onShapeChange({ id: shape.id, vertices: nextVertices, polygonFt, sqft });
   };
 
-  // Convert pointer-event coords → SVG view-box coords (handles CSS scaling).
   const toSvg = (clientX: number, clientY: number): Point | null => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return null;
@@ -88,26 +94,45 @@ export function LawnTrace({
     };
   };
 
-  // Top-level canvas pointer-down: if it didn't land on a vertex, treat as
-  // "add a vertex to the active shape".
+  // Tap on the canvas: while shape is open, append. While shape is closed,
+  // insert at the nearest edge so corners land in the right order.
   const onCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (dragRef.current) return; // a vertex grabbed it first
+    if (dragRef.current) return;
     const pt = toSvg(e.clientX, e.clientY);
     if (!pt) return;
-    emitChange(active, [...active.vertices, pt]);
+
+    if (!active.closed) {
+      // Snap to first vertex if close enough → close the shape.
+      if (active.vertices.length >= 3) {
+        const first = active.vertices[0]!;
+        const dx = first.x - pt.x;
+        const dy = first.y - pt.y;
+        const screenScale = svgRef.current
+          ? svgRef.current.getBoundingClientRect().width / widthPx
+          : 1;
+        const screenDist = Math.hypot(dx, dy) * screenScale;
+        if (screenDist < SNAP_CLOSE_PX) {
+          onShapeClose(active.id);
+          return;
+        }
+      }
+      emitChange(active, [...active.vertices, pt]);
+      return;
+    }
+
+    // Closed shape — insert at the nearest edge.
+    const idx = nearestEdgeIndex(active.vertices, pt);
+    const next = [...active.vertices.slice(0, idx + 1), pt, ...active.vertices.slice(idx + 1)];
+    emitChange(active, next);
   };
 
-  // Vertex pointer-down: start drag tracking. If pointer never moves past the
-  // threshold by pointer-up, treat as a tap → remove the vertex.
   const onVertexPointerDown = (
     e: React.PointerEvent<SVGCircleElement>,
     shape: EditableShape,
     index: number,
   ) => {
     e.stopPropagation();
-    if (shape.id !== activeId) {
-      onActiveChange(shape.id);
-    }
+    if (shape.id !== activeId) onActiveChange(shape.id);
     (e.target as Element).setPointerCapture(e.pointerId);
     dragRef.current = {
       shapeId: shape.id,
@@ -145,13 +170,17 @@ export function LawnTrace({
     } catch {
       // ignore
     }
-    if (drag && !drag.moved) {
-      // tap → remove
-      emitChange(
-        shape,
-        shape.vertices.filter((_, i) => i !== index),
-      );
+    if (!drag || drag.moved) return;
+    // Tap (no drag): if shape is open and this is the first vertex, close it.
+    if (!shape.closed && index === 0 && shape.vertices.length >= 3) {
+      onShapeClose(shape.id);
+      return;
     }
+    // Otherwise, remove the tapped vertex.
+    emitChange(
+      shape,
+      shape.vertices.filter((_, i) => i !== index),
+    );
   };
 
   // Re-emit when smooth toggles so the parent's polygonFt stays in sync.
@@ -160,58 +189,97 @@ export function LawnTrace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [smooth]);
 
-  const renderShape = (shape: EditableShape) => {
+  const renderShape = (shape: EditableShape, opts: { dim?: boolean } = {}) => {
     const isActive = shape.id === activeId;
     const isLawn = shape.kind === 'lawn';
+    const isClosed = shape.closed;
+    const opacity = opts.dim ? 0.45 : 1;
+
+    // Build the path. Open shapes render as a polyline (no Z, no fill).
     const path =
       shape.vertices.length === 0
         ? ''
-        : smooth && shape.vertices.length >= 3
-          ? smoothClosedSvgPath(shape.vertices)
-          : `M ${shape.vertices.map((p) => `${p.x} ${p.y}`).join(' L ')}${
-              shape.vertices.length >= 3 ? ' Z' : ''
-            }`;
+        : isClosed
+          ? smooth && shape.vertices.length >= 3
+            ? smoothClosedSvgPath(shape.vertices)
+            : `M ${shape.vertices.map((p) => `${p.x} ${p.y}`).join(' L ')} Z`
+          : `M ${shape.vertices.map((p) => `${p.x} ${p.y}`).join(' L ')}`;
 
     return (
-      <g key={shape.id} opacity={isActive ? 1 : 0.7}>
+      <g key={shape.id} opacity={opacity}>
         {shape.vertices.length >= 2 && (
           <path
             d={path}
-            fill={isLawn ? 'rgba(29, 90, 58, 0.25)' : 'rgba(10, 10, 10, 0.45)'}
-            stroke={isLawn ? '#ffffff' : '#ffffff'}
-            strokeWidth={isActive ? 4 : 2.5}
-            strokeDasharray={isLawn ? undefined : '6 4'}
+            fill={
+              isClosed
+                ? isLawn
+                  ? 'rgba(29, 90, 58, 0.25)'
+                  : 'rgba(10, 10, 10, 0.55)'
+                : 'none'
+            }
+            stroke="#ffffff"
+            strokeWidth={isActive ? 3.5 : 2.5}
+            strokeDasharray={isClosed ? (isLawn ? undefined : '6 4') : '8 6'}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
         )}
-        {shape.vertices.map((v, i) => (
-          <g key={i}>
-            {/* Larger invisible hit target for fat fingers. */}
-            <circle
-              cx={v.x}
-              cy={v.y}
-              r={VERTEX_HIT}
-              fill="transparent"
-              onPointerDown={(e) => onVertexPointerDown(e, shape, i)}
-              onPointerMove={onVertexPointerMove}
-              onPointerUp={(e) => onVertexPointerUp(e, shape, i)}
-              style={{ cursor: 'grab', touchAction: 'none' }}
-            />
-            <circle
-              cx={v.x}
-              cy={v.y}
-              r={VERTEX_RADIUS}
-              fill={isActive ? '#ffffff' : '#d4d4d8'}
-              stroke="#0a0a0a"
-              strokeWidth={2}
-              pointerEvents="none"
-            />
-          </g>
-        ))}
+        {shape.vertices.map((v, i) => {
+          const isFirst = !isClosed && i === 0 && shape.vertices.length >= 3;
+          return (
+            <g key={i}>
+              <circle
+                cx={v.x}
+                cy={v.y}
+                r={VERTEX_HIT}
+                fill="transparent"
+                onPointerDown={(e) => onVertexPointerDown(e, shape, i)}
+                onPointerMove={onVertexPointerMove}
+                onPointerUp={(e) => onVertexPointerUp(e, shape, i)}
+                style={{ cursor: 'grab', touchAction: 'none' }}
+              />
+              <circle
+                cx={v.x}
+                cy={v.y}
+                r={VERTEX_RADIUS}
+                fill={isFirst ? '#1d5a3a' : isActive ? '#ffffff' : '#d4d4d8'}
+                stroke="#0a0a0a"
+                strokeWidth={2}
+                pointerEvents="none"
+              />
+              {isFirst && (
+                <circle
+                  cx={v.x}
+                  cy={v.y}
+                  r={VERTEX_RADIUS + 6}
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                  pointerEvents="none"
+                />
+              )}
+            </g>
+          );
+        })}
       </g>
     );
   };
+
+  // Decide which shapes to render based on focus mode.
+  // - Editing lawn: lawn + cutouts (cutouts dimmed).
+  // - Editing cutout: only the active cutout + closed cutouts; lawn hidden.
+  const visibleShapes: { shape: EditableShape; dim: boolean }[] = [];
+  if (focusMode === 'lawn') {
+    for (const c of cutouts) visibleShapes.push({ shape: c, dim: true });
+    visibleShapes.push({ shape: lawn, dim: false });
+  } else {
+    for (const c of cutouts) {
+      if (c.id === activeId) continue;
+      if (c.closed) visibleShapes.push({ shape: c, dim: true });
+    }
+    visibleShapes.push({ shape: active, dim: false });
+  }
 
   return (
     <div className="space-y-3">
@@ -232,13 +300,19 @@ export function LawnTrace({
           className="absolute inset-0 h-full w-full touch-none"
           onPointerDown={onCanvasPointerDown}
         >
-          {/* Render inactive shapes first, then active on top. */}
-          {allShapes.filter((s) => s.id !== activeId).map(renderShape)}
-          {renderShape(active)}
+          {visibleShapes.map(({ shape, dim }) => renderShape(shape, { dim }))}
         </svg>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {!active.closed && active.vertices.length >= 3 && (
+          <button
+            onClick={() => onShapeClose(active.id)}
+            className="chip chip-selected"
+          >
+            ✓ Done — close {active.kind === 'lawn' ? 'lawn' : 'shape'}
+          </button>
+        )}
         <button
           onClick={() => onSmoothChange?.(!smooth)}
           className={`chip ${smooth ? 'chip-selected' : ''}`}
@@ -255,8 +329,40 @@ export function LawnTrace({
       </div>
 
       <p className="text-[13px] text-ink-muted">
-        Tap to add a corner · drag a corner to move · tap a corner to remove
+        {active.closed
+          ? 'Tap to add a corner · drag to move · tap a corner to remove'
+          : active.vertices.length === 0
+            ? `Tap to plot ${active.kind === 'lawn' ? 'lawn' : 'shape'} corners.`
+            : active.vertices.length < 3
+              ? 'Keep tapping corners — need 3+ to close.'
+              : 'Tap the green dot or "Done" to close. Drag any corner to nudge.'}
       </p>
     </div>
   );
+}
+
+function nearestEdgeIndex(verts: Point[], target: Point): number {
+  let best = -1;
+  let bestDist = Infinity;
+  for (let i = 0; i < verts.length; i++) {
+    const a = verts[i]!;
+    const b = verts[(i + 1) % verts.length]!;
+    const d = pointToSegment(target, a, b);
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function pointToSegment(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+  const px = a.x + t * dx;
+  const py = a.y + t * dy;
+  return Math.hypot(p.x - px, p.y - py);
 }
