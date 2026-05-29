@@ -64,7 +64,11 @@ export function LawnTrace({
   const svgRef = useRef<SVGSVGElement>(null);
   const allShapes: EditableShape[] = [lawn, ...cutouts];
   const active = allShapes.find((s) => s.id === activeId) ?? lawn;
-  const ftPerPx = pixelsToFeet(1, centerLat, zoom, scale);
+  const ftPerPx = pixelsToFeet(1, centerLat, zoom);
+  // NOTE: do not pass `scale` here. The SVG viewBox is in logical pixels
+  // (640 units), independent of the static-map scale modifier. Passing
+  // scale=2 would halve ftPerPx and quarter the area — exactly the bug
+  // that made a 76×70 ft yard read as 1,349 sqft instead of 5,320.
   // While editing a cutout, the lawn (and any other shapes) drop out so the
   // rep can focus on marking just what isn't covered.
   const focusMode: 'lawn' | 'cutout' = active.kind;

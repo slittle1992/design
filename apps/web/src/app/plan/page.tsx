@@ -26,13 +26,13 @@ export default function PlanPage() {
 
   const layout: StripLayout | null = useMemo(() => {
     if (!current?.lawnPolygon) return null;
-    // NOTE: V1 strip-packer runs on the lawn outline only. Net sqft accounts
-    // for cutouts honestly, but strip count / waste assumes the rolls flow
-    // over cutout areas (extra seams from a pool splitting a strip are TODO).
-    if (orientation === 'auto') return findMinWasteLayout(current.lawnPolygon, 14, 5);
-    if (orientation === 'ew') return computeStripLayout(current.lawnPolygon, 0, 14);
-    return computeStripLayout(current.lawnPolygon, 90, 14);
-  }, [current?.lawnPolygon, orientation]);
+    const cutoutPolys = current.cutouts
+      .filter((c) => (c.closed ?? true) && c.polygonFt.length >= 3)
+      .map((c) => c.polygonFt);
+    if (orientation === 'auto') return findMinWasteLayout(current.lawnPolygon, 14, 5, cutoutPolys);
+    if (orientation === 'ew') return computeStripLayout(current.lawnPolygon, 0, 14, cutoutPolys);
+    return computeStripLayout(current.lawnPolygon, 90, 14, cutoutPolys);
+  }, [current?.lawnPolygon, current?.cutouts, orientation]);
 
   if (!current?.lawnPolygon) return null;
 
